@@ -1,130 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>ashvgk.in</title>
+<meta charset="utf-8">
+<title>ashvgk.in</title>
 
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      font-family: Arial, sans-serif;
-      background-color: #ffffff;
-      overflow: hidden;
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  h1 {
+    font-size: 56px;
+    margin-bottom: 30px;
+    background: linear-gradient(90deg, #4285F4, #34A853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Stage holds both coin + search */
+  .stage {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    perspective: 1000px;
+  }
+
+  /* Coin */
+  .coin {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    animation: coinSequence 5s ease-in-out forwards;
+  }
+
+  @keyframes coinSequence {
+    /* 1s: visible, no motion */
+    0% {
+      transform: rotateY(0deg) translateY(0);
+    }
+    20% {
+      transform: rotateY(0deg) translateY(0);
     }
 
-    h1 {
-      font-size: 56px;
-      font-weight: 600;
-      margin-bottom: 30px;
-      background: linear-gradient(90deg, #4285F4, #34A853);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    /* spin */
+    50% {
+      transform: rotateY(720deg) translateY(0);
     }
 
-    /* Fixed space holder */
-    .stage {
-      position: relative;
-      width: 220px;
-      height: 220px;
+    /* fall down */
+    70% {
+      transform: rotateY(720deg) translateY(130px);
     }
 
-    /* Coin */
-    img {
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      object-fit: cover;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-      animation: coinSpinDrop 2.8s cubic-bezier(.25,.8,.25,1) forwards;
+    /* edge-on thin coin at bottom */
+    100% {
+      transform: rotateY(90deg) translateY(130px);
     }
+  }
 
-    @keyframes coinSpinDrop {
-      0% {
-        transform: rotateY(0deg) translateY(0);
-        opacity: 1;
-      }
-      60% {
-        transform: rotateY(720deg) translateY(0);
-      }
-      85% {
-        transform: rotateY(760deg) translateY(80px);
-      }
-      100% {
-        transform: rotateY(760deg) translateY(120px);
-        opacity: 0;
-      }
-    }
+  /* Search bar */
+  .search-container {
+    position: absolute;
+    top: 260px; /* starts below stage */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: all 1.2s ease-out;
+  }
 
-    /* Search */
-    .search-container {
-      position: absolute;
-      top: 260px; /* starts below stage */
-      left: 50%;
-      transform: translateX(-50%);
-      opacity: 0;
-      transition: all 1.2s ease-out;
-    }
+  .search-container.show {
+    top: 0;
+    opacity: 1;
+  }
 
-    .search-container.show {
-      top: 0;
-      opacity: 1;
-    }
+  .search-box {
+    width: 420px;
+    padding: 14px 18px;
+    font-size: 16px;
+    border-radius: 24px;
+    border: 1px solid #dfe1e5;
+    outline: none;
+  }
 
-    .search-box {
-      width: 420px;
-      padding: 14px 18px;
-      font-size: 16px;
-      border-radius: 24px;
-      border: 1px solid #dfe1e5;
-      outline: none;
-    }
+  .search-box:focus {
+    box-shadow: 0 1px 6px rgba(32,33,36,.28);
+    border-color: transparent;
+  }
 
-    .search-box:focus {
-      box-shadow: 0 1px 6px rgba(32,33,36,.28);
-      border-color: transparent;
-    }
-
-    .welcome {
-      margin-top: 25px;
-      font-size: 18px;
-      color: #333;
-      opacity: 0;
-      transition: opacity 1s ease;
-    }
-  </style>
+  .welcome {
+    margin-top: 25px;
+    font-size: 18px;
+    color: #333;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+</style>
 </head>
 
 <body>
-  <h1>ashvgk.in</h1>
 
-  <div class="stage">
-    <img src="photo_ashvgk_site.jpg" alt="Avinash" id="coin">
+<h1>ashvgk.in</h1>
 
-    <div class="search-container" id="search">
-      <form action="https://www.google.com/search" method="get">
-        <input
-          type="text"
-          name="q"
-          class="search-box"
-          placeholder="Search Google"
-          autofocus
-        >
-      </form>
-    </div>
+<div class="stage">
+  <img src="photo_ashvgk_site.jpg" alt="Avinash" class="coin" id="coin">
+
+  <div class="search-container" id="search">
+    <form action="https://www.google.com/search" method="get">
+      <input
+        type="text"
+        name="q"
+        class="search-box"
+        placeholder="Search Google"
+        autofocus
+      >
+    </form>
   </div>
+</div>
 
-  <div class="welcome" id="welcome">🙏 Welcome</div>
+<div class="welcome" id="welcome">🙏 Welcome</div>
 
-  <script>
-    setTimeout(() => {
-      document.getElementById('search').classList.add('show');
-      document.getElementById('welcome').style.opacity = 1;
-    }, 2700);
-  </script>
+<script>
+  // Show search AFTER coin has fallen & turned edge-on
+  setTimeout(() => {
+    document.getElementById('search').classList.add('show');
+    document.getElementById('welcome').style.opacity = 1;
+  }, 4000);
+</script>
+
 </body>
 </html>
