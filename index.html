@@ -14,7 +14,6 @@
     align-items: center;
     overflow: hidden;
   }
-
   #title-wrap {
     margin: 40px 0 0;
     height: 80px;
@@ -22,7 +21,6 @@
     align-items: center;
     justify-content: center;
   }
-
   #t-left, #t-right {
     font-size: 56px;
     font-weight: 900;
@@ -32,7 +30,6 @@
     background-clip: text;
     opacity: 0;
   }
-
   #dot-slot {
     display: inline-block;
     width: 14px;
@@ -45,16 +42,13 @@
     position: relative;
     top: 4px;
   }
-
   canvas { display: block; margin-top: -20px; }
-
   #search {
     margin-top: 16px;
     opacity: 0;
     transform: translateY(16px);
     transition: opacity 0.8s ease, transform 0.8s ease;
   }
-
   .search-box {
     display: flex;
     align-items: center;
@@ -77,7 +71,6 @@
     background: transparent;
     color: #202124;
   }
-
   .search-btns {
     display: flex;
     justify-content: center;
@@ -124,113 +117,122 @@
 </div>
 
 <script>
-  const canvas = document.getElementById('c');
-  const ctx    = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+(function () {
+  var canvas = document.getElementById('c');
+  var ctx    = canvas.getContext('2d');
+  var W = canvas.width;
+  var H = canvas.height;
 
-  const startX = W / 2;
-  const startY = H - 30;
-  const R0     = 90;
+  var R0        = 90;
+  var gravity   = 900;
+  var launchVY  = -820;
+  var flipSpeed = 8;
+  var startX    = W / 2;
+  var startY    = H - 30;
+  var targetX   = W / 2;
+  var targetY   = -55;
 
-  const gravity    = 900;
-  const launchVY   = -820;
-  const flipSpeed  = 8;
+  var qa   = 0.5 * gravity;
+  var qb   = launchVY;
+  var qc   = startY - targetY;
+  var disc = qb * qb - 4 * qa * qc;
+  var sq   = Math.sqrt(disc > 0 ? disc : 0);
+  var t1   = (-qb - sq) / (2 * qa);
+  var t2   = (-qb + sq) / (2 * qa);
+  var flightDuration = (t1 > 0 && t1 < t2) ? t1 : t2;
+  var velX = 0; // startX === targetX so no horizontal movement needed
 
-  // Target: dot position sits above canvas (~55px above top edge)
-  const targetX = W / 2;
-  const targetY = -55;
+  var coinX = startX, coinY = startY;
+  var velY  = launchVY;
+  var flipAngle = 0, R = R0;
+  var totalTime = 0, last = null;
 
-  // Solve for flight duration: 0.5g·t² + velY·t + (startY − targetY) = 0
-  const a   = 0.5 * gravity;
-  const bv  = launchVY;
-  const cv  = startY - targetY;
-  const disc = bv * bv - 4 * a * cv;
-  const t1   = (-bv - Math.sqrt(disc)) / (2 * a);
-  const t2   = (-bv + Math.sqrt(disc)) / (2 * a);
-  const flightDuration = (Math.min(t1, t2) > 0) ? Math.min(t1, t2) : Math.max(t1, t2);
-  const velX = (targetX - startX) / flightDuration;
-
-  let coinX = startX, coinY = startY;
-  let velY  = launchVY;
-  let flipAngle = 0, R = R0;
-  let totalTime = 0, last = null;
-
-  // Load photo — falls back gracefully if missing
-  const photo = new Image();
-  photo.src   = 'photo_ashvgk_site.jpg';
+  // Try loading photo — animation runs regardless
+  var photo = new Image();
+  var photoReady = false;
+  photo.onload = function() { photoReady = true; };
+  photo.onerror = function() { photoReady = false; };
+  photo.src = 'photo_ashvgk_site.jpg';
 
   function drawCoin(x, y, r, flip) {
-    if (!isFinite(r) || r < 1) return;
-    const cosF = Math.cos(flip);
-    const rx   = Math.max(1, r * Math.abs(cosF));
-    const ry   = Math.max(1, r);
-    if (rx < 1 || ry < 1) return;
+    var sr   = r < 2 ? 2 : r;
+    var cosF = Math.cos(flip);
+    var absC = cosF < 0 ? -cosF : cosF;
+    var rx   = sr * absC;
+    if (rx < 1.5) rx = 1.5;
+    var ry   = sr;
 
-    // Shadow — only visible near ground
+    // Ground shadow
     if (y > H * 0.55) {
-      const dist = H - y;
-      const ss   = Math.max(0.1, 1 - dist / (H * 0.5));
+      var pct = (y - H * 0.55) / (H * 0.45);
+      if (pct > 1) pct = 1;
       ctx.save();
       ctx.translate(x, H - 22);
       ctx.beginPath();
-      ctx.ellipse(0, 0, r * ss * 0.9, r * ss * 0.18, 0, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0,0,0,${0.05 + 0.1 * ss})`;
+      var ew = sr * pct * 0.85;
+      var eh = sr * pct * 0.15;
+      if (eh < 0.5) eh = 0.5;
+      ctx.ellipse(0, 0, ew, eh, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,' + (0.08 * pct) + ')';
       ctx.fill();
       ctx.restore();
     }
 
+    // Coin face
     ctx.save();
     ctx.translate(x, y);
     ctx.beginPath();
-    ctx.ellipse(0, 0, Math.max(rx, 0.5), ry, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
     ctx.clip();
 
-    // Photo or gradient fallback
-    if (photo.complete && photo.naturalWidth > 0) {
-      ctx.drawImage(photo, -r, -r, r * 2, r * 2);
+    if (photoReady) {
+      ctx.drawImage(photo, -sr, -sr, sr * 2, sr * 2);
       if (cosF < 0) {
-        ctx.fillStyle = 'rgba(52,168,83,0.4)';
-        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.fillStyle = 'rgba(52,168,83,0.38)';
+        ctx.fillRect(-sr, -sr, sr * 2, sr * 2);
       }
     } else {
-      const grad = ctx.createRadialGradient(-rx * 0.3, -ry * 0.3, Math.max(0.1, ry * 0.05), 0, 0, Math.max(1, ry));
+      var inner = sr * 0.05;
+      if (inner < 0.1) inner = 0.1;
+      var outer = sr;
+      if (outer < inner + 0.1) outer = inner + 0.1;
+      var grad = ctx.createRadialGradient(-rx * 0.25, -ry * 0.25, inner, 0, 0, outer);
       if (cosF >= 0) {
-        grad.addColorStop(0, '#74b8ff');
+        grad.addColorStop(0,   '#74b8ff');
         grad.addColorStop(0.5, '#4285F4');
-        grad.addColorStop(1, '#1a6e3c');
+        grad.addColorStop(1,   '#1a6e3c');
       } else {
-        grad.addColorStop(0, '#a8d5a2');
+        grad.addColorStop(0,   '#a8d5a2');
         grad.addColorStop(0.5, '#34A853');
-        grad.addColorStop(1, '#1a4a8a');
+        grad.addColorStop(1,   '#1a4a8a');
       }
       ctx.fillStyle = grad;
-      ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.fillRect(-sr, -sr, sr * 2, sr * 2);
 
-      if (Math.abs(cosF) > 0.15 && r > 18) {
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.font = `bold ${Math.round(r * 0.65)}px Arial`;
-        ctx.textAlign = 'center';
+      if (absC > 0.15 && sr > 20) {
+        ctx.fillStyle    = 'rgba(255,255,255,0.92)';
+        ctx.font         = 'bold ' + Math.round(sr * 0.62) + 'px Arial';
+        ctx.textAlign    = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('A', 0, 0);
       }
     }
 
-    // Shine sweep
-    const sg = ctx.createLinearGradient(-rx, 0, rx, 0);
-    sg.addColorStop(0, 'rgba(255,255,255,0)');
-    sg.addColorStop(0.45, `rgba(255,255,255,${0.2 * Math.abs(cosF)})`);
-    sg.addColorStop(1, 'rgba(255,255,255,0)');
+    // Shine
+    var sg = ctx.createLinearGradient(-rx, 0, rx, 0);
+    sg.addColorStop(0,    'rgba(255,255,255,0)');
+    sg.addColorStop(0.45, 'rgba(255,255,255,' + (0.18 * absC) + ')');
+    sg.addColorStop(1,    'rgba(255,255,255,0)');
     ctx.fillStyle = sg;
-    ctx.fillRect(-r, -r, r * 2, r * 2);
-
+    ctx.fillRect(-sr, -sr, sr * 2, sr * 2);
     ctx.restore();
 
     // Rim
     ctx.save();
     ctx.translate(x, y);
     ctx.beginPath();
-    ctx.ellipse(0, 0, Math.max(rx, 0.5), ry, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
     ctx.lineWidth   = 1.5;
     ctx.stroke();
     ctx.restore();
@@ -238,29 +240,31 @@
 
   function loop(ts) {
     if (!last) last = ts;
-    const dt = Math.min((ts - last) / 1000, 0.05);
+    var dt = (ts - last) / 1000;
+    if (dt > 0.05) dt = 0.05;
     last = ts;
     totalTime += dt;
 
     ctx.clearRect(0, 0, W, H);
 
-    // Ground line
+    // Subtle ground line
     ctx.beginPath();
-    ctx.moveTo(W / 2 - 150, H - 22);
-    ctx.lineTo(W / 2 + 150, H - 22);
+    ctx.moveTo(W / 2 - 140, H - 22);
+    ctx.lineTo(W / 2 + 140, H - 22);
     ctx.strokeStyle = 'rgba(0,0,0,0.07)';
     ctx.lineWidth   = 1;
     ctx.stroke();
 
     velY      += gravity * dt;
-    coinX     += velX * dt;
     coinY     += velY * dt;
     flipAngle += flipSpeed * dt;
 
-    // Shrink: eases in fast near end so it snaps into the dot
-    const progress   = Math.max(0, Math.min(1, totalTime / flightDuration));
-    const shrinkEase = progress * progress * progress;
-    R = Math.max(1, R0 * (1 - shrinkEase) + 7 * shrinkEase);
+    var progress = totalTime / flightDuration;
+    if (progress > 1) progress = 1;
+    if (progress < 0) progress = 0;
+    var ease = progress * progress * progress;
+    R = R0 * (1 - ease) + 7 * ease;
+    if (R < 2) R = 2;
 
     if (totalTime >= flightDuration) {
       ctx.clearRect(0, 0, W, H);
@@ -275,57 +279,57 @@
   function landInDot() {
     canvas.style.display = 'none';
 
-    const tLeft  = document.getElementById('t-left');
-    const tRight = document.getElementById('t-right');
-    const dot    = document.getElementById('dot-slot');
+    var tLeft  = document.getElementById('t-left');
+    var tRight = document.getElementById('t-right');
+    var dot    = document.getElementById('dot-slot');
 
-    // Text slides in from both sides
-    tLeft.style.transform  = 'translateX(-14px)';
-    tRight.style.transform = 'translateX(14px)';
-
+    tLeft.style.transform   = 'translateX(-16px)';
+    tRight.style.transform  = 'translateX(16px)';
     tLeft.style.transition  = 'opacity 0.4s ease, transform 0.4s ease';
     tRight.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
 
-    requestAnimationFrame(() => {
-      tLeft.style.opacity    = '1';
-      tLeft.style.transform  = 'translateX(0)';
-      tRight.style.opacity   = '1';
-      tRight.style.transform = 'translateX(0)';
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        tLeft.style.opacity    = '1';
+        tLeft.style.transform  = 'translateX(0)';
+        tRight.style.opacity   = '1';
+        tRight.style.transform = 'translateX(0)';
+      });
     });
 
-    // Dot pops in with overshoot bounce
-    setTimeout(() => {
-      dot.style.transform  = 'scale(0)';
+    setTimeout(function() {
       dot.style.opacity    = '1';
-      dot.style.transition = 'opacity 0.1s ease, transform 0.25s cubic-bezier(0.3,1.8,0.5,1)';
-      requestAnimationFrame(() => {
-        dot.style.transform = 'scale(1)';
+      dot.style.transform  = 'scale(0)';
+      dot.style.transition = 'opacity 0.1s ease, transform 0.28s cubic-bezier(0.25,1.8,0.5,1)';
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          dot.style.transform = 'scale(1)';
+        });
       });
-    }, 260);
+    }, 280);
 
-    // Search bar slides up
-    setTimeout(() => {
-      const s = document.getElementById('search');
+    setTimeout(function() {
+      var s = document.getElementById('search');
       s.style.opacity   = '1';
       s.style.transform = 'translateY(0)';
-    }, 950);
+    }, 980);
   }
 
-  // Start animation — works with or without photo
-  photo.onload  = () => requestAnimationFrame(loop);
-  photo.onerror = () => requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 
-  function doSearch() {
-    const q = document.getElementById('gsearch').value.trim();
-    if (q) window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q);
-  }
-  function luckySearch() {
-    const q = document.getElementById('gsearch').value.trim();
-    if (q) window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q) + '&btnI=1';
-  }
-  document.getElementById('gsearch').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
-  });
+})();
+
+function doSearch() {
+  var q = document.getElementById('gsearch').value.trim();
+  if (q) window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+}
+function luckySearch() {
+  var q = document.getElementById('gsearch').value.trim();
+  if (q) window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q) + '&btnI=1';
+}
+document.getElementById('gsearch').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+});
 </script>
 
 </body>
